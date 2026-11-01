@@ -1,5 +1,5 @@
 {
-  "name": "claude-svg-optimizer",
+  "name": "svg-style-stripper",
   "version": "0.1.0",
   "private": true,
   "description": "Remove redundant styles and C2PA metadata from SVG files downloaded from claude.ai.",

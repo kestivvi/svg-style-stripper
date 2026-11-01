@@ -37,10 +37,10 @@ export function App() {
   return (
     <main className="flex w-full flex-col gap-6 px-4 py-10 sm:px-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Claude SVG Optimizer</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">SVG Style Stripper</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Removes redundant styles and metadata from SVG files downloaded from claude.ai. Your files stay in this
-          browser.
+          browser. Not affiliated with Anthropic.
         </p>
       </header>
 

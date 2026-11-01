@@ -1,8 +1,10 @@
-# Claude SVG Optimizer
+# SVG Style Stripper
 
 Makes SVG files downloaded from claude.ai smaller. It removes redundant styles and C2PA metadata. The six example files in `example/` became 86% smaller, from 135.8 KB to 18.8 KB in total.
 
 Your files stay on your computer. Nothing is sent to a server.
+
+This is an independent tool. It is not affiliated with Anthropic.
 
 ## Setup
 
