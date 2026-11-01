@@ -1,5 +1,5 @@
 import { useRef, useState, type DragEvent } from "react";
-import { AlertTriangle, Download, FileArchive, Trash2, Upload, XCircle } from "lucide-react";
+import { AlertTriangle, Download, FileArchive, Moon, Sun, Trash2, Upload, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -119,6 +119,9 @@ function ErrorRow({ name, message }: { name: string; message: string }) {
 }
 
 function ResultRow({ file }: { file: OptimizedFile }) {
+  const [background, setBackground] = useState(file.background);
+  const dark = background === "dark";
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -129,9 +132,14 @@ function ResultRow({ file }: { file: OptimizedFile }) {
             <strong className="text-foreground font-semibold">−{file.reducedPercent.toFixed(1)}%</strong>
           </p>
         </div>
-        <Button size="sm" variant="secondary" onClick={() => saveSvg(file)} aria-label={`Download ${file.downloadName}`}>
-          <Download /> Download
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setBackground(dark ? "light" : "dark")}>
+            {dark ? <Sun /> : <Moon />} {dark ? "Light preview" : "Dark preview"}
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => saveSvg(file)} aria-label={`Download ${file.downloadName}`}>
+            <Download /> Download
+          </Button>
+        </div>
       </div>
       {file.warnings.map((warning) => (
         <p key={warning} className="text-muted-foreground flex gap-2 text-xs">
@@ -139,18 +147,18 @@ function ResultRow({ file }: { file: OptimizedFile }) {
         </p>
       ))}
       <div className="grid grid-cols-2 gap-3">
-        <Preview label="Before" src={file.beforeUrl} />
-        <Preview label="After" src={file.afterUrl} />
+        <Preview label="Before" src={file.beforeUrl} dark={dark} />
+        <Preview label="After" src={file.afterUrl} dark={dark} />
       </div>
     </div>
   );
 }
 
-function Preview({ label, src }: { label: string; src: string }) {
+function Preview({ label, src, dark }: { label: string; src: string; dark: boolean }) {
   return (
     <figure className="min-w-0">
       <figcaption className="text-muted-foreground mb-1 text-xs">{label}</figcaption>
-      <div className="rounded-md border bg-white p-2">
+      <div data-testid="preview" className={cn("rounded-md border p-2", dark ? "bg-[#262624]" : "bg-white")}>
         <img src={src} alt={`${label} preview`} className="h-auto w-full" />
       </div>
     </figure>

@@ -1,7 +1,7 @@
 import { zipSync } from "fflate";
 import { minifiedName } from "../../core/format";
 import type { OptimizeWarning } from "../../core/optimize";
-import { optimizeSvg } from "../../core/optimize";
+import { optimizeSvg, suggestBackground } from "../../core/optimize";
 
 export interface OptimizedFile {
   status: "ok";
@@ -15,6 +15,7 @@ export interface OptimizedFile {
   optimizedBytes: number;
   reducedPercent: number;
   warnings: OptimizeWarning[];
+  background: "light" | "dark";
 }
 
 export interface FailedFile {
@@ -40,6 +41,7 @@ export async function processFile(file: File): Promise<FileEntry> {
       downloadName: minifiedName(file.name),
       beforeUrl: svgUrl(input),
       afterUrl: svgUrl(result.output),
+      background: suggestBackground(input),
       ...result,
     };
   } catch (error) {

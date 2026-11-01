@@ -345,6 +345,48 @@ function byteLength(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
+function luminance(color: string): number | null {
+  const v = color.trim();
+  const rgb = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(v);
+  if (rgb) return (0.2126 * Number(rgb[1]) + 0.7152 * Number(rgb[2]) + 0.0722 * Number(rgb[3])) / 255;
+  const hex = /^#([\da-f]{3}|[\da-f]{6})$/i.exec(v)?.[1];
+  if (hex) {
+    const full = hex.length === 3 ? hex.replace(/./g, "$&$&") : hex;
+    const channel = (i: number) => parseInt(full.slice(i, i + 2), 16);
+    return (0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)) / 255;
+  }
+  if (/^black$/i.test(v)) return 0;
+  if (/^white$/i.test(v)) return 1;
+  return null;
+}
+
+/**
+ * Tells which background makes the text of a file readable.
+ * claude.ai writes the colors of its active theme into the file, and the file has no background.
+ */
+export function suggestBackground(input: string): "light" | "dark" {
+  let lightChars = 0;
+  let darkChars = 0;
+  const visit = (el: Element, inheritedFill: string) => {
+    let fill = el.getAttribute("fill") || inheritedFill;
+    for (const [prop, value] of splitDeclarations(el.getAttribute("style") ?? "")) {
+      if (prop === "fill") fill = value;
+    }
+    if (TEXTS.has(el.localName ?? "")) {
+      let chars = 0;
+      for (let n = el.firstChild; n; n = n.nextSibling) {
+        if (n.nodeType === TEXT_NODE) chars += n.nodeValue?.trim().length ?? 0;
+      }
+      const lum = luminance(fill);
+      if (lum !== null && lum > 0.5) lightChars += chars;
+      else if (lum !== null) darkChars += chars;
+    }
+    for (const child of elements(el)) visit(child, fill);
+  };
+  visit(parse(input), "#000");
+  return lightChars > darkChars ? "dark" : "light";
+}
+
 export function optimizeSvg(input: string): OptimizeResult {
   const root = parse(input);
   const warnings: OptimizeWarning[] = [];

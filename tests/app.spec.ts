@@ -67,6 +67,27 @@ test("adds files, shows results, and downloads them", async ({ page }) => {
   await expect(page.getByText(files[0]!)).toHaveCount(0);
 });
 
+test("previews a dark file on a dark background, and the user can change it", async ({ page }) => {
+  const dark = files.find((f) => f.includes("(dark)"))!;
+  await page.setViewportSize({ width: 800, height: 700 });
+  await page.goto("/");
+  await page.locator('input[type="file"]').setInputFiles(path.join(dir, dark));
+  const preview = page.getByTestId("preview").first();
+  await expect(preview).toHaveCSS("background-color", "rgb(38, 38, 36)");
+  await page.getByAltText("After preview").evaluate((img: HTMLImageElement) => img.decode());
+  await page.screenshot({ path: "test-results/dark-preview.png" });
+  await page.getByRole("button", { name: "Light preview" }).click();
+  await expect(preview).toHaveCSS("background-color", "rgb(255, 255, 255)");
+});
+
+test("previews a light file on a light background", async ({ page }) => {
+  const light = files.find((f) => !f.includes("(dark)"))!;
+  await page.goto("/");
+  await page.locator('input[type="file"]').setInputFiles(path.join(dir, light));
+  await expect(page.getByTestId("preview").first()).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(page.getByRole("button", { name: "Dark preview" })).toBeVisible();
+});
+
 test("shows an error for one bad file and keeps the good file", async ({ page }) => {
   await page.goto("/");
   await page.locator('input[type="file"]').setInputFiles([

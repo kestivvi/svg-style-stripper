@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { InvalidSvgError, optimizeSvg } from "./optimize";
+import { InvalidSvgError, optimizeSvg, suggestBackground } from "./optimize";
 
 const NS = 'xmlns="http://www.w3.org/2000/svg"';
 const svg = (body: string, attrs = "") => `<svg ${NS} viewBox="0 0 10 10"${attrs}>${body}</svg>`;
@@ -128,6 +128,31 @@ describe("optimizeSvg", () => {
     for (const file of readdirSync("example")) {
       const once = out(readFileSync(`example/${file}`, "utf8"));
       expect(out(once)).toBe(once);
+    }
+  });
+});
+
+describe("suggestBackground", () => {
+  const svg = (body: string) => `<svg xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+
+  it("chooses dark for light text", () => {
+    expect(suggestBackground(svg('<text style="fill:rgb(240, 239, 236)">Label</text>'))).toBe("dark");
+  });
+
+  it("uses a fill from a parent element", () => {
+    expect(suggestBackground(svg('<g fill="#fff"><text>Label</text></g>'))).toBe("dark");
+  });
+
+  it("chooses light for dark text, default text, and files with no text", () => {
+    expect(suggestBackground(svg('<text fill="#222">Label</text>'))).toBe("light");
+    expect(suggestBackground(svg("<text>Label</text>"))).toBe("light");
+    expect(suggestBackground(svg('<rect fill="#fff"/>'))).toBe("light");
+  });
+
+  it("gets the theme of each example file", () => {
+    for (const file of readdirSync("example")) {
+      const expected = file.includes("(dark)") ? "dark" : "light";
+      expect(suggestBackground(readFileSync(`example/${file}`, "utf8")), file).toBe(expected);
     }
   });
 });
