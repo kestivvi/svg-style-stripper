@@ -10,8 +10,8 @@ export interface Io {
   stderr: (text: string) => void;
 }
 
-const HELP = `Usage: claude-svg-optimizer [options] <file...>
-       claude-svg-optimizer -  (read stdin, write stdout)
+const HELP = `Usage: cso [options] <file...>
+       cso -  (read stdin, write stdout)
 
 Writes <name>.min.svg next to each input file. Input files are never changed.
 

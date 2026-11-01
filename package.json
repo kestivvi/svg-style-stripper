@@ -5,7 +5,7 @@
   "description": "Remove redundant styles and C2PA metadata from SVG files downloaded from claude.ai.",
   "type": "module",
   "bin": {
-    "claude-svg-optimizer": "dist/cli/index.js"
+    "cso": "dist/cli/index.js"
   },
   "files": [
     "dist/cli"
