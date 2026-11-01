@@ -1,5 +1,5 @@
-import { useRef, useState, type DragEvent } from "react";
-import { AlertTriangle, Download, FileArchive, Moon, Sun, Trash2, Upload, XCircle } from "lucide-react";
+import { useRef, useState, type DragEvent, type KeyboardEvent, type PointerEvent } from "react";
+import { AlertTriangle, ArrowLeftRight, ChevronsLeftRight, Download, FileArchive, Moon, Sun, Trash2, Upload, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,7 @@ export function App() {
   const optimized = entries.filter((e): e is OptimizedFile => e.status === "ok");
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10">
+    <main className="flex w-full flex-col gap-6 px-4 py-10 sm:px-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Claude SVG Optimizer</h1>
         <p className="text-muted-foreground mt-1 text-sm">
@@ -120,6 +120,8 @@ function ErrorRow({ name, message }: { name: string; message: string }) {
 
 function ResultRow({ file }: { file: OptimizedFile }) {
   const [background, setBackground] = useState(file.background);
+  const [mode, setMode] = useState<"slider" | "whole">("slider");
+  const [shown, setShown] = useState<"Before" | "After">("After");
   const dark = background === "dark";
 
   return (
@@ -146,21 +148,150 @@ function ResultRow({ file }: { file: OptimizedFile }) {
           <AlertTriangle className="size-3.5 shrink-0" aria-hidden /> {warningText[warning]}
         </p>
       ))}
-      <div className="grid grid-cols-2 gap-3">
-        <Preview label="Before" src={file.beforeUrl} dark={dark} />
-        <Preview label="After" src={file.afterUrl} dark={dark} />
+      <div className="flex flex-wrap items-center gap-2">
+        <ChoiceGroup label="Preview mode" value={mode} options={[["slider", "Slider"], ["whole", "Whole image"]]} onChange={setMode} />
+        {mode === "whole" && (
+          <Button size="sm" variant="secondary" className="w-36" onClick={() => setShown(shown === "Before" ? "After" : "Before")}>
+            <ArrowLeftRight /> Show {shown === "Before" ? "After" : "Before"}
+          </Button>
+        )}
       </div>
+      <Stage file={file} dark={dark} mode={mode} shown={shown} />
     </div>
   );
 }
 
-function Preview({ label, src, dark }: { label: string; src: string; dark: boolean }) {
+function ChoiceGroup<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: [T, string][];
+  onChange: (value: T) => void;
+}) {
   return (
-    <figure className="min-w-0">
-      <figcaption className="text-muted-foreground mb-1 text-xs">{label}</figcaption>
-      <div data-testid="preview" className={cn("rounded-md border p-2", dark ? "bg-[#262624]" : "bg-white")}>
-        <img src={src} alt={`${label} preview`} className="h-auto w-full" />
-      </div>
-    </figure>
+    <div role="group" aria-label={label} className="flex gap-1 rounded-lg border p-0.5">
+      {options.map(([option, text]) => (
+        <Button
+          key={option}
+          size="sm"
+          variant={option === value ? "secondary" : "ghost"}
+          aria-pressed={option === value}
+          onClick={() => onChange(option)}
+        >
+          {text}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+const imageClass = "absolute inset-0 size-full";
+const tagClass = "pointer-events-none absolute top-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white";
+
+function Stage({
+  file,
+  dark,
+  mode,
+  shown,
+}: {
+  file: OptimizedFile;
+  dark: boolean;
+  mode: "slider" | "whole";
+  shown: "Before" | "After";
+}) {
+  const [ratio, setRatio] = useState(4 / 3);
+  const [position, setPosition] = useState(50);
+
+  const moveTo = (event: PointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    setPosition(Math.round(Math.min(100, Math.max(0, ((event.clientX - box.left) / box.width) * 100))));
+  };
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    const step = { ArrowLeft: -2, ArrowDown: -2, ArrowRight: 2, ArrowUp: 2 }[event.key];
+    if (step === undefined) return;
+    event.preventDefault();
+    setPosition((current) => Math.min(100, Math.max(0, current + step)));
+  };
+
+  const onLoad = (event: { currentTarget: HTMLImageElement }) => {
+    const { naturalWidth, naturalHeight } = event.currentTarget;
+    if (naturalWidth && naturalHeight) setRatio(naturalWidth / naturalHeight);
+  };
+
+  const sliderProps =
+    mode === "slider"
+      ? {
+          role: "slider",
+          tabIndex: 0,
+          "aria-label": "Compare before and after",
+          "aria-valuemin": 0,
+          "aria-valuemax": 100,
+          "aria-valuenow": position,
+          onKeyDown,
+          onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            moveTo(event);
+          },
+          onPointerMove: (event: PointerEvent<HTMLDivElement>) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) moveTo(event);
+          },
+        }
+      : {};
+
+  return (
+    <div
+      data-testid="preview"
+      {...sliderProps}
+      style={{ aspectRatio: ratio, width: `min(100%, calc((100dvh - 2rem) * ${ratio}))` }}
+      className={cn(
+        "relative mx-auto overflow-hidden rounded-md border select-none",
+        dark ? "bg-[#262624]" : "bg-white",
+        mode === "slider" && "focus-visible:ring-ring cursor-ew-resize touch-none outline-none focus-visible:ring-2",
+      )}
+    >
+      {mode === "slider" ? (
+        <>
+          {/* Each image is cut at the line. These files have no background, so text in an image below would show through. */}
+          <img
+            src={file.afterUrl}
+            alt="After preview"
+            draggable={false}
+            onLoad={onLoad}
+            className={imageClass}
+            style={{ clipPath: `inset(0 0 0 ${position}%)` }}
+          />
+          <img
+            src={file.beforeUrl}
+            alt="Before preview"
+            draggable={false}
+            className={imageClass}
+            style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
+          />
+          <div
+            className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.6)]"
+            style={{ left: `${position}%` }}
+          >
+            <ChevronsLeftRight className="absolute top-1/2 left-1/2 size-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-1 text-black shadow-[0_0_0_1px_rgba(0,0,0,0.6)]" aria-hidden />
+          </div>
+          <span className={cn(tagClass, "left-2")}>Before</span>
+          <span className={cn(tagClass, "right-2")}>After</span>
+        </>
+      ) : (
+        <>
+          <img
+            src={shown === "Before" ? file.beforeUrl : file.afterUrl}
+            alt={`${shown} preview`}
+            onLoad={onLoad}
+            className={imageClass}
+          />
+          <span className={cn(tagClass, "left-2")}>{shown}</span>
+        </>
+      )}
+    </div>
   );
 }
