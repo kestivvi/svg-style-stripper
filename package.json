@@ -2,6 +2,7 @@
   "name": "svg-style-stripper",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Remove redundant styles and C2PA metadata from SVG files downloaded from claude.ai.",
   "type": "module",
   "bin": {

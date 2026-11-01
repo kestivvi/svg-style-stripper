@@ -70,3 +70,7 @@ The command skips input files with a name that ends in `.min.svg`. If one or mor
 
 - **Embedded fonts are kept unchanged and can stay large.** The output file is correct, but it can stay large.
 - **Styles are kept unchanged because this file uses features that are not safe to rewrite.** The tool does not change the styles, so the file becomes less small.
+
+## License
+
+[MIT](LICENSE)
