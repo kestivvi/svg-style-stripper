@@ -26,6 +26,29 @@ function reportWarnings(warnings: OptimizeWarning[], io: Io, prefix: string): vo
   for (const w of warnings) io.stderr(`${prefix}warning: ${warningText[w]}\n`);
 }
 
+async function runStdin(io: Io): Promise<number> {
+  try {
+    const result = optimizeSvg(await io.stdin());
+    io.stdout(result.output);
+    reportWarnings(result.warnings, io, "");
+    return 0;
+  } catch (error) {
+    io.stderr(`Error: ${(error as Error).message}\n`);
+    return 1;
+  }
+}
+
+async function writeOutput(output: string, text: string, force: boolean): Promise<void> {
+  try {
+    await writeFile(output, text, { flag: force ? "w" : "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error(`${output} exists, use --force to overwrite it`);
+    }
+    throw error;
+  }
+}
+
 /** Runs the CLI and returns the process exit code. */
 export async function run(argv: string[], version: string, io: Io): Promise<number> {
   let parsed;
@@ -64,15 +87,7 @@ export async function run(argv: string[], version: string, io: Io): Promise<numb
       io.stderr("Error: '-' cannot be used with other files or --out-dir.\n");
       return 1;
     }
-    try {
-      const result = optimizeSvg(await io.stdin());
-      io.stdout(result.output);
-      reportWarnings(result.warnings, io, "");
-      return 0;
-    } catch (error) {
-      io.stderr(`Error: ${(error as Error).message}\n`);
-      return 1;
-    }
+    return runStdin(io);
   }
 
   let failed = 0;
@@ -94,14 +109,7 @@ export async function run(argv: string[], version: string, io: Io): Promise<numb
 
       const result = optimizeSvg(await readFile(input, "utf8"));
       if (values["out-dir"]) await mkdir(dir, { recursive: true });
-      try {
-        await writeFile(output, result.output, { flag: values.force ? "w" : "wx" });
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === "EEXIST") {
-          throw new Error(`${output} exists, use --force to overwrite it`);
-        }
-        throw error;
-      }
+      await writeOutput(output, result.output, values.force);
       written.add(key);
 
       done++;

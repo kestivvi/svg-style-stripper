@@ -1,15 +1,19 @@
-import { useRef, useState, type DragEvent, type KeyboardEvent, type PointerEvent } from "react";
+import { useState, type DragEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { AlertTriangle, ArrowLeftRight, ChevronsLeftRight, Download, FileArchive, Moon, Sun, Trash2, Upload, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 import { formatBytes, warningText } from "../core/format";
 import { processFile, releaseEntry, saveAll, saveSvg, saveZip, type FileEntry, type OptimizedFile } from "./lib/files";
+
+type PreviewMode = "slider" | "whole";
+type Side = "Before" | "After";
+
+const clampPercent = (value: number) => Math.min(100, Math.max(0, value));
 
 export function App() {
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [dragging, setDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const addFiles = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -56,7 +60,6 @@ export function App() {
         <Upload className="text-muted-foreground size-8" aria-hidden />
         <span className="font-medium">Drop SVG files here, or click to choose files</span>
         <input
-          ref={inputRef}
           type="file"
           accept=".svg,image/svg+xml"
           multiple
@@ -120,8 +123,9 @@ function ErrorRow({ name, message }: { name: string; message: string }) {
 
 function ResultRow({ file }: { file: OptimizedFile }) {
   const [background, setBackground] = useState(file.background);
-  const [mode, setMode] = useState<"slider" | "whole">("slider");
-  const [shown, setShown] = useState<"Before" | "After">("After");
+  const [mode, setMode] = useState<PreviewMode>("slider");
+  const [shown, setShown] = useState<Side>("After");
+  const hidden: Side = shown === "Before" ? "After" : "Before";
   const dark = background === "dark";
 
   return (
@@ -151,8 +155,8 @@ function ResultRow({ file }: { file: OptimizedFile }) {
       <div className="flex flex-wrap items-center gap-2">
         <ChoiceGroup label="Preview mode" value={mode} options={[["slider", "Slider"], ["whole", "Whole image"]]} onChange={setMode} />
         {mode === "whole" && (
-          <Button size="sm" variant="secondary" className="w-36" onClick={() => setShown(shown === "Before" ? "After" : "Before")}>
-            <ArrowLeftRight /> Show {shown === "Before" ? "After" : "Before"}
+          <Button size="sm" variant="secondary" className="w-36" onClick={() => setShown(hidden)}>
+            <ArrowLeftRight /> Show {hidden}
           </Button>
         )}
       </div>
@@ -200,22 +204,22 @@ function Stage({
 }: {
   file: OptimizedFile;
   dark: boolean;
-  mode: "slider" | "whole";
-  shown: "Before" | "After";
+  mode: PreviewMode;
+  shown: Side;
 }) {
   const [ratio, setRatio] = useState(4 / 3);
   const [position, setPosition] = useState(50);
 
   const moveTo = (event: PointerEvent<HTMLDivElement>) => {
     const box = event.currentTarget.getBoundingClientRect();
-    setPosition(Math.round(Math.min(100, Math.max(0, ((event.clientX - box.left) / box.width) * 100))));
+    setPosition(Math.round(clampPercent(((event.clientX - box.left) / box.width) * 100)));
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
     const step = { ArrowLeft: -2, ArrowDown: -2, ArrowRight: 2, ArrowUp: 2 }[event.key];
     if (step === undefined) return;
     event.preventDefault();
-    setPosition((current) => Math.min(100, Math.max(0, current + step)));
+    setPosition((current) => clampPercent(current + step));
   };
 
   const onLoad = (event: { currentTarget: HTMLImageElement }) => {

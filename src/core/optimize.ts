@@ -219,7 +219,7 @@ function ownWants(el: Element, resolved: Values): string[] {
   return wants;
 }
 
-interface Node {
+interface StyleNode {
   el: Element;
   /** Resolved values of the properties this element needs from its parent. */
   wants: Values;
@@ -231,10 +231,10 @@ interface Node {
   verbatim: [string, string][];
   /** Managed properties held in verbatim. Children cannot rely on them after a rewrite. */
   pinned: Set<string>;
-  children: Node[];
+  children: StyleNode[];
 }
 
-function analyze(el: Element, inherited: Values, parentName: string): Node {
+function analyze(el: Element, inherited: Values, parentName: string): StyleNode {
   const resolved = new Map(inherited);
   resolved.delete("opacity");
   const name = el.localName ?? "";
@@ -278,13 +278,13 @@ function analyze(el: Element, inherited: Values, parentName: string): Node {
     if (value !== undefined && !pinned.has(prop)) wants.set(prop, value);
   }
 
-  const node: Node = { el, wants, emit: new Map(), local, verbatim, pinned, children };
+  const node: StyleNode = { el, wants, emit: new Map(), local, verbatim, pinned, children };
   hoist(node);
   return node;
 }
 
 /** Choose the most common value among the children, so that fewer elements write it. */
-function hoist(node: Node): void {
+function hoist(node: StyleNode): void {
   const props = new Set<string>();
   for (const child of node.children) for (const prop of child.wants.keys()) props.add(prop);
 
@@ -306,7 +306,7 @@ function hoist(node: Node): void {
   }
 }
 
-function mostCommon(children: Node[], prop: string): string {
+function mostCommon(children: StyleNode[], prop: string): string {
   const counts = new Map<string, number>();
   let best = "";
   let bestCount = 0;
@@ -323,7 +323,7 @@ function mostCommon(children: Node[], prop: string): string {
   return best;
 }
 
-function write(node: Node): void {
+function write(node: StyleNode): void {
   for (const [prop, value] of node.emit) node.el.setAttribute(prop, value);
   for (const [prop, value] of node.local) node.el.setAttribute(prop, value);
   if (node.verbatim.length > 0) {
@@ -345,15 +345,19 @@ function byteLength(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
+function weightedLuminance(red: number, green: number, blue: number): number {
+  return (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+}
+
 function luminance(color: string): number | null {
   const v = color.trim();
   const rgb = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(v);
-  if (rgb) return (0.2126 * Number(rgb[1]) + 0.7152 * Number(rgb[2]) + 0.0722 * Number(rgb[3])) / 255;
+  if (rgb) return weightedLuminance(Number(rgb[1]), Number(rgb[2]), Number(rgb[3]));
   const hex = /^#([\da-f]{3}|[\da-f]{6})$/i.exec(v)?.[1];
   if (hex) {
     const full = hex.length === 3 ? hex.replace(/./g, "$&$&") : hex;
     const channel = (i: number) => parseInt(full.slice(i, i + 2), 16);
-    return (0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)) / 255;
+    return weightedLuminance(channel(0), channel(2), channel(4));
   }
   if (/^black$/i.test(v)) return 0;
   if (/^white$/i.test(v)) return 1;

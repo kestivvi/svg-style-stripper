@@ -60,7 +60,7 @@ export function releaseEntry(entry: FileEntry): void {
   URL.revokeObjectURL(entry.afterUrl);
 }
 
-export function saveBlob(blob: Blob, name: string): void {
+function saveBlob(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -82,7 +82,7 @@ export async function saveAll(files: OptimizedFile[]): Promise<void> {
 }
 
 /** Gives repeated names a number: name.min.svg, name-2.min.svg. */
-export function uniqueNames(names: string[]): string[] {
+function uniqueNames(names: string[]): string[] {
   const used = new Set<string>();
   return names.map((name) => {
     let candidate = name;
